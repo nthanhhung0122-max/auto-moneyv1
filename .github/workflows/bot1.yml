@@ -1,0 +1,26 @@
+name: Auto Money Bot - Acc 2
+
+on:
+  schedule:
+    # Tự động chạy mỗi 15 phút một lần 24/7
+    - cron: '*/15 * * * *'
+  # Cho phép bấm nút "Run workflow" để chạy ngay lập tức
+  workflow_dispatch:
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout mã nguồn
+        uses: actions/checkout@v3
+
+      - name: Cài đặt Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Cài đặt thư viện cần thiết
+        run: pip install requests colorama
+
+      - name: Chạy Bot cày tiền
+        run: python auto_kiemtien1.py
