@@ -1,26 +1,31 @@
-name: Auto Money Bot - Acc 2
+name: Auto TelePet 24/7 (Acc 2)
 
 on:
-  schedule:
-    # Tự động chạy mỗi 15 phút một lần 24/7
-    - cron: '*/15 * * * *'
-  # Cho phép bấm nút "Run workflow" để chạy ngay lập tức
   workflow_dispatch:
+  schedule:
+    - cron: '0 */5 * * *'
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout mã nguồn
-        uses: actions/checkout@v3
+    timeout-minutes: 350
 
-      - name: Cài đặt Python 3.10
-        uses: actions/setup-python@v4
+    steps:
+      - name: Checkout ma nguon
+        uses: actions/checkout@v4
+
+      - name: Cai dat Python 3.10
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name: Cài đặt thư viện cần thiết
-        run: pip install requests colorama
+      - name: Cai dat thu vien can thiet
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests telethon colorama
 
-      - name: Chạy Bot cày tiền
-        run: python auto_kiemtien1.py
+      - name: Chay Bot cay tien
+        env:
+          PYTHONUNBUFFERED: "1"
+        run: |
+          python auto_kiemtien1.py
