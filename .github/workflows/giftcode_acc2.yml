@@ -1,0 +1,19 @@
+name: Auto Giftcode (Acc 2)
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */5 * * *'
+jobs:
+  run-giftcode:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install requests telethon colorama
+      - env:
+          PYTHONUNBUFFERED: "1"
+          TELEGRAM_SESSION_B64_ACC2: ${{ secrets.TELEGRAM_SESSION_B64_ACC2 }}
+        run: python auto_giftcode2.py
