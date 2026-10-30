@@ -2,15 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 ====================================================================
-  BOT QUET VA NAP GIFTCODE TELEPET 24/7 (CHAY DU 200 MA MOI NGHI)
+  BOT QUET VA NAP GIFTCODE TELEPET 24/7 (BO LOC VIP: CHI NHAT CODE >= 9,000 XU)
   Tai khoan: ACC 2 (@gaylobucu - ID: 8431197387)
-  
-  TINH NANG:
-      - TU DONG LAY INIT_DATA MOI QUA STRINGSESSION (Khong bao gio het han, khong loi sqlite malformed)
-      - BE KHOA MOI DANG LINK RUT GON (Layma, link4m, linktop, traffictop, traffic68, trafficviet, v.v.)
-      - CHE DO AUTO-FARM VO HAN: Tu dong tao tai khoan web ao de lay ma lien tuc
-      - CHAY DU 200 MA CODE DU CO GIOI HAN HAY KHONG ROI MOI NGHI
-      - Tu dong nghi den 00:00:05 GMT+7 roi thuc giac chay tiep ngay moi
 ====================================================================
 """
 
@@ -31,9 +24,6 @@ from telethon.tl.functions.messages import RequestWebViewRequest
 
 init(autoreset=True)
 
-# -----------------------------------------------------------------
-#  CAU HINH TAI KHOAN: ACC 2 (@gaylobucu - ID: 8431197387)
-# -----------------------------------------------------------------
 API_ID = 39182276
 API_HASH = "f02b155d895a3a3fbf8a1cbe810b5338"
 
@@ -41,7 +31,10 @@ DEFAULT_STRING_SESSION = "1BVtsOHIBuzoeRtBOmpNGh2sdyxpZ5e0nY4MrFe-6KKbmJPaM0YnCJ
 FALLBACK_INIT_DATA = ""
 
 CURRENT_INIT_DATA = ""
+MIN_REWARD_VALUE = 9000
 TARGET_CODES_COUNT = 200
+HIGH_VALUE_TASKS = [1, 16, 24, 25, 27, 31]
+
 PROCESSED_CODES = set()
 COINS_EARNED_TODAY = 0
 CODES_SUCCESS_TODAY = 0
@@ -68,7 +61,7 @@ def log(tag, msg, color=Fore.WHITE):
 
 async def fetch_fresh_init_data():
     global CURRENT_INIT_DATA
-    log("+", "Dang ket noi Telegram de lay init_data ACC 2 (@gaylobucu - ID: 8431197387)...", Fore.CYAN)
+    log("+", "Dang ket noi Telegram de lay init_data ACC 2 (@gaylobucu)...", Fore.CYAN)
     session_str = os.getenv("TELEGRAM_STRING_SESSION") or DEFAULT_STRING_SESSION
     if session_str:
         try:
@@ -95,7 +88,6 @@ async def fetch_fresh_init_data():
 
     if FALLBACK_INIT_DATA:
         CURRENT_INIT_DATA = FALLBACK_INIT_DATA
-        log("INFO", "Su dung init_data san co trong cau hinh!", Fore.GREEN)
         return CURRENT_INIT_DATA
     return None
 
@@ -159,12 +151,15 @@ def fetch_code_from_task(session, tid):
     url = f"https://kiemtienngay.us/nbk222/giftcode.php?task_id={tid}"
     try:
         r = session.get(url, allow_redirects=False, timeout=8)
+        if r.status_code == 200 and "BẠN ĐÃ LẤY GIFTCODE NÀY RỒI" in r.text:
+            return None, 0
+
         loc = r.headers.get("Location", "")
         if not loc:
-            return None
+            return None, 0
         target_url = extract_giftcode_target_url(loc, session)
         if not target_url:
-            return None
+            return None, 0
 
         headers_gift = {
             'Content-Type': 'application/x-www-form-urlencoded',
@@ -175,20 +170,27 @@ def fetch_code_from_task(session, tid):
         data = r_claim.json()
         if data.get("status") == "ok":
             code = data.get("code")
-            return code
+            rew_str = str(data.get("reward", "0")).replace(",", "").replace(".", "").strip()
+            reward_val = int(rew_str) if rew_str.isdigit() else 0
+            return code, reward_val
     except:
         pass
-    return None
+    return None, 0
 
-def redeem_code(code):
+def redeem_code(code, reward_val):
     global COINS_EARNED_TODAY, CODES_SUCCESS_TODAY, IS_DAILY_LIMIT
     if not code or code in PROCESSED_CODES:
         return
+
+    if reward_val < MIN_REWARD_VALUE:
+        log("SKIP", f"Bo qua ma [{code}] vi chi co {reward_val:,} xu (< {MIN_REWARD_VALUE:,} xu)", Fore.YELLOW)
+        return
+
     PROCESSED_CODES.add(code)
     curr_idx = len(PROCESSED_CODES)
 
     if IS_DAILY_LIMIT:
-        log("LIMIT", f"[{curr_idx}/{TARGET_CODES_COUNT}] Ma [{code}] (Acc da cham nguong ngay, van quet cho du 200 ma)", Fore.YELLOW)
+        log("LIMIT", f"[{curr_idx}/{TARGET_CODES_COUNT}] Ma 9K [{code}] (Acc da cham nguong ngay, tiep tuc chay cho du 200 ma)", Fore.YELLOW)
         time.sleep(0.5)
         return
 
@@ -201,40 +203,38 @@ def redeem_code(code):
         r = requests.post(API_URL, headers=HEADERS_TELEPET, data=redeem_data, timeout=8)
         res = r.json()
         if res.get("ok"):
-            amt = res.get("amount", 5000)
+            amt = res.get("amount", reward_val or 9000)
             COINS_EARNED_TODAY += amt
             CODES_SUCCESS_TODAY += 1
-            log("GIFT", f"[{curr_idx}/{TARGET_CODES_COUNT}] Ma [{code}] -> +{amt:,} Xu! (Tong: {COINS_EARNED_TODAY:,} Xu)", Fore.GREEN)
+            log("VIP", f"[{curr_idx}/{TARGET_CODES_COUNT}] Ma 9K [{code}] -> +{amt:,} Xu! (Tong: {COINS_EARNED_TODAY:,} Xu)", Fore.GREEN)
         else:
             err = str(res.get("error", ""))
             if "chào cậu" in err.lower() or "hi chào" in err.lower() or "tối đa" in err.lower():
-                log("LIMIT", f"[{curr_idx}/{TARGET_CODES_COUNT}] Acc cham gioi han ngay: '{err}'! (Tiep tuc chay du 200 ma...)", Fore.YELLOW)
+                log("LIMIT", f"[{curr_idx}/{TARGET_CODES_COUNT}] Acc cham gioi han ngay: '{err}'! (Tiep tuc quet du 200 ma...)", Fore.YELLOW)
                 IS_DAILY_LIMIT = True
             else:
-                log("INFO", f"[{curr_idx}/{TARGET_CODES_COUNT}] Ma [{code}] -> {err}", Fore.WHITE)
+                log("INFO", f"[{curr_idx}/{TARGET_CODES_COUNT}] Ma [{code}] ({reward_val:,} xu) -> {err}", Fore.WHITE)
     except Exception as e:
         log("ERR", f"[{curr_idx}/{TARGET_CODES_COUNT}] Loi nap code [{code}]: {e}", Fore.RED)
     time.sleep(1)
 
 def scan_web_tasks_until_target():
-    log("START", f"Bat dau quet cho den khi DU {TARGET_CODES_COUNT} MA CODE...", Fore.MAGENTA)
-    task_ids = [1, 2, 3, 4, 5, 6, 8, 9, 10, 13, 14, 15, 16]
+    log("START", f"Bat dau quet CHUYEN MA VIP >= {MIN_REWARD_VALUE:,} XU cho den khi DU {TARGET_CODES_COUNT} MA...", Fore.MAGENTA)
 
-    # 1. Quet tai khoan web mac dinh
     s_main = requests.Session()
     s_main.headers.update(DEFAULT_WEB_HEADERS)
-    uname_main = f"hung_acc2_2026"
+    uname_main = "hung_acc2_2026"
     s_main.post("https://kiemtienngay.us/register.php", data={"username": uname_main, "password": "Pass123456@", "confirm_password": "Pass123456@", "referrer": ""}, timeout=8)
     s_main.post("https://kiemtienngay.us/login.php", data={"username": uname_main, "password": "Pass123456@"}, timeout=8)
 
-    for tid in task_ids:
-        if len(PROCESSED_CODES) >= TARGET_CODES_COUNT:
-            break
-        code = fetch_code_from_task(s_main, tid)
-        if code:
-            redeem_code(code)
+    for round_num in range(1, 3):
+        for tid in HIGH_VALUE_TASKS:
+            if len(PROCESSED_CODES) >= TARGET_CODES_COUNT:
+                break
+            code, rew = fetch_code_from_task(s_main, tid)
+            if code:
+                redeem_code(code, rew)
 
-    # 2. Xoay vong tao tai khoan ao de cao du 200 ma
     farm_cycle = 1
     while len(PROCESSED_CODES) < TARGET_CODES_COUNT:
         farm_cycle += 1
@@ -243,16 +243,17 @@ def scan_web_tasks_until_target():
             time.sleep(3)
             continue
 
-        log("FARM", f"Tao tai khoan ao #{farm_cycle} ({fresh_user}). Dang quet tiep...", Fore.MAGENTA)
-        for tid in task_ids:
-            if len(PROCESSED_CODES) >= TARGET_CODES_COUNT:
-                break
-            code = fetch_code_from_task(s_fresh, tid)
-            if code:
-                redeem_code(code)
-        time.sleep(2)
+        log("FARM", f"Tao tai khoan ao #{farm_cycle} ({fresh_user}). Dang quet ma 9,000 xu...", Fore.MAGENTA)
+        for round_num in range(1, 3):
+            for tid in HIGH_VALUE_TASKS:
+                if len(PROCESSED_CODES) >= TARGET_CODES_COUNT:
+                    break
+                code, rew = fetch_code_from_task(s_fresh, tid)
+                if code:
+                    redeem_code(code, rew)
+        time.sleep(1)
 
-    log("DONE", f"DA HOAN THANH DU {len(PROCESSED_CODES)}/{TARGET_CODES_COUNT} MA GIFTCODE!", Fore.GREEN)
+    log("DONE", f"DA HOAN THANH DU {len(PROCESSED_CODES)}/{TARGET_CODES_COUNT} MA GIFTCODE 9,000 XU!", Fore.GREEN)
 
 def get_seconds_until_midnight_vn():
     vn_tz = timezone(timedelta(hours=7))
@@ -265,7 +266,7 @@ def sleep_until_midnight():
     sec_left = get_seconds_until_midnight_vn()
     hrs, remainder = divmod(sec_left, 3600)
     mins, secs = divmod(remainder, 60)
-    log("SLEEP", f"Da chay DU 200 ma! Se nghi {hrs}h {mins}p cho den 00:00:05 GMT+7 de reset ngay moi...", Fore.MAGENTA)
+    log("SLEEP", f"Da chay DU 200 ma 9,000 xu! Se nghi {hrs}h {mins}p cho den 00:00:05 GMT+7 de reset ngay moi...", Fore.MAGENTA)
     while sec_left > 5:
         chunk = min(sec_left, 300)
         time.sleep(chunk)
@@ -277,9 +278,9 @@ def sleep_until_midnight():
 def main():
     print(f"""
 {Fore.CYAN}====================================================================
-|  BOT QUET VA NAP GIFTCODE 24/7 (ACC 2 (@gaylobucu - ID: 8431197387))
-|  MUC TIEU: QUET DU 200 MA CODE DU CO BI GIOI HAN HAY KHONG
-|  CONG NGHE: TELETHON STRINGSESSION (CHONG MALFORMED 100%)
+|  BOT QUET VA NAP GIFTCODE 24/7 (ACC 2 (@gaylobucu))
+|  BO LOC DAC BIET: CHI NHAT MA >= {MIN_REWARD_VALUE:,} XU (BO QUA MA 5K)
+|  MUC TIEU: QUET DU {TARGET_CODES_COUNT} MA CODE DU CO BI GIOI HAN HAY KHONG
 ===================================================================={Style.RESET_ALL}
     """)
     get_fresh_init_data_sync()
@@ -297,7 +298,7 @@ def main():
         scan_web_tasks_until_target()
 
         print("\n" + "="*60)
-        print(f"{Fore.GREEN}TONG KET PHIEN 200 GIFTCODE - ACC 2 (@gaylobucu - ID: 8431197387){Style.RESET_ALL}")
+        print(f"{Fore.GREEN}TONG KET PHIEN 200 GIFTCODE 9,000 XU - ACC 2 (@gaylobucu){Style.RESET_ALL}")
         print(f"- Tong ma da quet: {len(PROCESSED_CODES)} / {TARGET_CODES_COUNT}")
         print(f"- Nap thanh cong: {CODES_SUCCESS_TODAY} ma | Xu kiem duoc: +{COINS_EARNED_TODAY:,} Xu")
         print("="*60 + "\n")
